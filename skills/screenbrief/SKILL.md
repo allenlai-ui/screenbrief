@@ -109,7 +109,7 @@ To supplement an existing output package without rerunning priority or 1fps extr
 
 ```bash
 screenbrief input.mp4 \
-  --output-dir ./demo-ai-frames-20260609-143012 \
+  --output-dir ./demo-ai-frames-20260609-143012-123456 \
   --extra-timestamps "12,18.5,34" \
   --append-manual-frames
 ```
@@ -123,7 +123,7 @@ The script creates one folder under the command's current working directory unle
 Example:
 
 ```text
-./demo-ai-frames-20260609-143012/
+./demo-ai-frames-20260609-143012-123456/
   priority-scenes/
     scene_000001.jpg
   ui-states/

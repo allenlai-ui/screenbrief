@@ -49,7 +49,7 @@ screenbrief "https://example.com/demo.mp4"
 The output folder is created in the current working directory:
 
 ```text
-./recording-ai-frames-20260609-143012/
+./recording-ai-frames-20260609-143012-123456/
   storyboard/
   ui-states/
   priority-scenes/
@@ -59,6 +59,8 @@ The output folder is created in the current working directory:
   manifest.json
   ai-summary-prompt.md
 ```
+
+Default folder names preserve Unicode letters and numbers, and the timestamp includes microseconds to avoid same-second filename collisions.
 
 When sharing the result with an AI, start with:
 
@@ -115,7 +117,7 @@ Append manual frames to an existing output package without rerunning the full ex
 
 ```bash
 screenbrief input.mp4 \
-  --output-dir ./recording-ai-frames-20260609-143012 \
+  --output-dir ./recording-ai-frames-20260609-143012-123456 \
   --extra-timestamps "12,18.5,34" \
   --append-manual-frames
 ```
@@ -276,7 +278,7 @@ screenbrief "https://example.com/demo.mp4"
 輸出會建立在目前資料夾：
 
 ```text
-./recording-ai-frames-20260609-143012/
+./recording-ai-frames-20260609-143012-123456/
   storyboard/
   ui-states/
   priority-scenes/
@@ -286,6 +288,8 @@ screenbrief "https://example.com/demo.mp4"
   manifest.json
   ai-summary-prompt.md
 ```
+
+預設資料夾名稱會保留中文等 Unicode 字元，timestamp 也包含微秒，降低同一秒處理多支影片時的撞名機率。
 
 給 AI 看時，優先丟：
 
@@ -342,7 +346,7 @@ screenbrief input.mp4 \
 
 ```bash
 screenbrief input.mp4 \
-  --output-dir ./recording-ai-frames-20260609-143012 \
+  --output-dir ./recording-ai-frames-20260609-143012-123456 \
   --extra-timestamps "12,18.5,34" \
   --append-manual-frames
 ```

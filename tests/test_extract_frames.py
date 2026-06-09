@@ -50,6 +50,53 @@ class ExtractFramesTests(unittest.TestCase):
         self.assertEqual([record["ordinal"] for record in selected], list(range(1, 11)))
         self.assertEqual(selected[-1]["relative_path"], "ui-states/state_000010.jpg")
 
+    def test_slugify_preserves_cjk_names(self):
+        self.assertEqual(self.module.slugify("登入流程"), "登入流程")
+        self.assertEqual(self.module.slugify("結帳 bug 重現"), "結帳-bug-重現")
+
+    def test_default_output_dir_uses_unicode_slug_and_subsecond_timestamp(self):
+        output_path = self.module.resolve_output_dir("登入流程.mp4", None)
+
+        self.assertRegex(output_path.name, r"^登入流程-ai-frames-\d{8}-\d{6}-\d{6}$")
+
+    def test_ffmpeg_filter_value_escapes_drawtext_path_separators(self):
+        escaped = self.module.escape_ffmpeg_filter_value(Path("/tmp/My,Recordings/clip's:labels/label.txt"))
+
+        self.assertEqual(escaped, r"/tmp/My\,Recordings/clip\'s\:labels/label.txt")
+
+    def test_label_storyboard_card_uses_safe_relative_label_file(self):
+        calls = []
+        original_run_command = self.module.run_command
+        original_find_font_file = self.module.find_font_file
+
+        def fake_run_command(args, **kwargs):
+            calls.append((args, kwargs))
+            return self.module.CommandResult(args=args, returncode=0, stdout="", stderr="")
+
+        try:
+            self.module.run_command = fake_run_command
+            self.module.find_font_file = lambda: None
+            label_file = Path("/tmp/My,Recordings:clip's-output/logs/storyboard-labeled/label_000001.txt")
+
+            self.module.label_storyboard_card(
+                source_path=Path("/tmp/source.jpg"),
+                output_path=Path("/tmp/output.jpg"),
+                label_file=label_file,
+                card_width=360,
+                card_height=560,
+                label_height=72,
+            )
+        finally:
+            self.module.run_command = original_run_command
+            self.module.find_font_file = original_find_font_file
+
+        self.assertEqual(len(calls), 1)
+        command, kwargs = calls[0]
+        vf = command[command.index("-vf") + 1]
+        self.assertIn("drawtext=textfile=label_000001.txt", vf)
+        self.assertNotIn("My", vf)
+        self.assertEqual(kwargs["cwd"], label_file.parent)
+
     def test_ai_prompt_is_storyboard_first_when_storyboard_exists(self):
         prompt = self.module.make_ai_prompt(
             {

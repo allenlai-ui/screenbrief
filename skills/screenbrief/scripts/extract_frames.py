@@ -9,6 +9,7 @@ import re
 import shutil
 import subprocess
 import sys
+import unicodedata
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
@@ -329,7 +330,7 @@ def parse_args() -> argparse.Namespace:
         description="Extract scene-change priority frames and regular backup frames for AI video understanding.",
     )
     parser.add_argument("source", help="Local video path or direct video URL.")
-    parser.add_argument("--output-dir", help="Exact output folder. Defaults to ./<video-name>-ai-frames-YYYYMMDD-HHMMSS.")
+    parser.add_argument("--output-dir", help="Exact output folder. Defaults to ./<video-name>-ai-frames-YYYYMMDD-HHMMSS-ffffff.")
     parser.add_argument("--scene-threshold", type=float, default=0.35, help="Scene-change threshold. Lower values extract more frames.")
     parser.add_argument("--fallback-scene-threshold", type=float, default=0.05, help="Fallback scene threshold when the primary pass extracts no priority frames.")
     parser.add_argument("--backup-fps", type=float, default=1.0, help="Backup timeline frame rate. Default: 1 frame per second.")
@@ -433,7 +434,7 @@ def resolve_output_dir(source: str, output_dir: str | None) -> Path:
     if output_dir:
         return Path(output_dir).expanduser().resolve()
 
-    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    timestamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
     slug = slugify(source_basename(source))
     return Path.cwd() / f"{slug}-ai-frames-{timestamp}"
 
@@ -447,10 +448,19 @@ def source_basename(source: str) -> str:
 
 
 def slugify(value: str) -> str:
-    value = value.strip().lower()
-    value = re.sub(r"[^a-z0-9._-]+", "-", value)
-    value = re.sub(r"-+", "-", value).strip("-._")
-    return (value or "video")[:80]
+    normalized = unicodedata.normalize("NFKC", value.strip()).lower()
+    pieces: list[str] = []
+    previous_dash = False
+    for character in normalized:
+        if character.isalnum() or character in "._-":
+            pieces.append(character)
+            previous_dash = False
+        elif not previous_dash:
+            pieces.append("-")
+            previous_dash = True
+
+    slug = "".join(pieces).strip("-._")
+    return (slug or "video")[:80]
 
 
 def ffprobe_command(source: str) -> list[str]:
@@ -468,6 +478,17 @@ def ffprobe_command(source: str) -> list[str]:
 
 def make_scale_filter(max_long_side: int) -> str:
     return f"scale='min({max_long_side},iw)':'min({max_long_side},ih)':force_original_aspect_ratio=decrease"
+
+
+def escape_ffmpeg_filter_value(value: str | Path) -> str:
+    special_characters = {"\\", "'", ":", ",", ";", "[", "]"}
+    escaped: list[str] = []
+    for character in str(value):
+        if character in special_characters or character.isspace():
+            escaped.append(f"\\{character}")
+        else:
+            escaped.append(character)
+    return "".join(escaped)
 
 
 def extract_priority_scenes(
@@ -852,12 +873,13 @@ def label_storyboard_card(
     label_height: int,
 ) -> CommandResult:
     font = find_font_file()
+    escaped_label_file = escape_ffmpeg_filter_value(label_file.name)
     drawtext = (
-        f"drawtext=textfile={label_file}:fontcolor=black:fontsize=16:"
+        f"drawtext=textfile={escaped_label_file}:fontcolor=black:fontsize=16:"
         f"x=10:y=10:line_spacing=4"
     )
     if font:
-        drawtext += f":fontfile={font}"
+        drawtext += f":fontfile={escape_ffmpeg_filter_value(font)}"
     vf = (
         f"scale={card_width}:{card_height}:force_original_aspect_ratio=decrease,"
         f"pad={card_width}:{card_height}:(ow-iw)/2:(oh-ih)/2:color=black,"
@@ -876,7 +898,7 @@ def label_storyboard_card(
         "1",
         str(output_path),
     ]
-    return run_command(command)
+    return run_command(command, cwd=label_file.parent)
 
 
 def find_font_file() -> str | None:
@@ -958,8 +980,14 @@ def make_storyboard_markdown(pages: list[str], items: list[dict[str, Any]]) -> s
     return "\n".join(lines) + "\n"
 
 
-def run_command(args: list[str]) -> CommandResult:
-    completed = subprocess.run(args, check=False, capture_output=True, text=True)
+def run_command(args: list[str], *, cwd: Path | None = None) -> CommandResult:
+    completed = subprocess.run(
+        args,
+        check=False,
+        capture_output=True,
+        text=True,
+        cwd=str(cwd) if cwd else None,
+    )
     return CommandResult(
         args=args,
         returncode=completed.returncode,
