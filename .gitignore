@@ -1,0 +1,12 @@
+.DS_Store
+*.pyc
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+dist/
+build/
+*.egg-info/
+*.log
+*-ai-frames-*/
+screenbrief-smoke-*/

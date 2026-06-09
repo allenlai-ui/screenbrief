@@ -1,0 +1,4 @@
+interface:
+  display_name: "ScreenBrief"
+  short_description: "Turn screen recordings into AI-ready storyboards and screenshots."
+  default_prompt: "Extract a timestamped storyboard, UI-state frames, priority scene-change frames, and 1fps backup frames from this screen recording for AI analysis."
